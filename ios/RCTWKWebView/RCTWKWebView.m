@@ -14,6 +14,8 @@
 
 #import <objc/runtime.h>
 
+static NSString *const kPostMessageHost = @"postMessage";
+
 // runtime trick to remove WKWebView keyboard default toolbar
 // see: http://stackoverflow.com/questions/19033292/ios-7-uiwebview-keyboard-issue/19042279#19042279
 @interface _SwizzleHelperWK : NSObject @end
@@ -64,6 +66,8 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
     config.processPool = processPool;
     WKUserContentController* userController = [[WKUserContentController alloc]init];
     [userController addScriptMessageHandler:[[WeakScriptMessageDelegate alloc] initWithDelegate:self] name:@"reactNative"];
+    [userController addScriptMessageHandler:self name:@"bcz_weixinpay_pay"];
+
     config.userContentController = userController;
 
     _webView = [[WKWebView alloc] initWithFrame:self.bounds configuration:config];
@@ -348,6 +352,23 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
       return decisionHandler(WKNavigationActionPolicyCancel);
     }
   }
+
+  if (isJSNavigation && [request.URL.host isEqualToString:kPostMessageHost]) {
+    NSString *data = request.URL.query;
+    data = [data stringByReplacingOccurrencesOfString:@"+" withString:@" "];
+    data = [data stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+    
+    NSMutableDictionary<NSString *, id> *event = [self baseEvent];
+    [event addEntriesFromDictionary: @{
+                                       @"data": data,
+                                       }];
+    
+    NSString *source = @"document.dispatchEvent(new MessageEvent('message:received'));";
+    
+    [_webView evaluateJavaScript:source completionHandler:^(id result, NSError *error) {}];
+    
+    _onMessage(event);
+  }
   
   if (_onLoadingStart) {
     // We have this check to filter out iframe requests and whatnot
@@ -393,6 +414,32 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
 - (void)webView:(WKWebView *)webView didFinishNavigation:(__unused WKNavigation *)navigation
 {
+  NSString *source = [NSString stringWithFormat:
+    @"(function() {"
+    "window.originalPostMessage = window.postMessage;"
+    
+    "var messageQueue = [];"
+    "var messagePending = false;"
+    
+    "function processQueue() {"
+    "if (!messageQueue.length || messagePending) return;"
+    "messagePending = true;"
+    "window.location = '%@://%@?' + encodeURIComponent(messageQueue.shift());"
+    "}"
+    
+    "window.postMessage = function(data) {"
+    "messageQueue.push(String(data));"
+    "processQueue();"
+    "};"
+    
+    "document.addEventListener('message:received', function(e) {"
+    "messagePending = false;"
+    "processQueue();"
+    "});"
+    "})();", RCTJSNavigationScheme, kPostMessageHost
+  ];
+  [webView evaluateJavaScript:source completionHandler:^(id result, NSError *error) {}];
+
   if (_injectedJavaScript != nil) {
     [webView evaluateJavaScript:_injectedJavaScript completionHandler:^(id result, NSError *error) {
       NSMutableDictionary<NSString *, id> *event = [self baseEvent];
