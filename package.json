@@ -43,7 +43,8 @@
     "url": "https://github.com/CRAlpha/react-native-wkwebview/issues"
   },
   "dependencies": {
-    "fbjs": "^0.8.3"
+    "fbjs": "^0.8.3",
+    "native-base": "2.12.1"
   },
   "description": "React Native WKWebView for iOS",
   "devDependencies": {},
@@ -73,7 +74,9 @@
     "url": "git+https://github.com/CRAlpha/react-native-wkwebview.git"
   },
   "scripts": {
-    "lint": "eslint --ext .js --ext .jsx ."
+    "lint": "eslint --ext .js --ext .jsx .",
+    "sync-from-example": "cp ./example/node_modules/react-native-wkwebview-reborn/*.js ./;cp -r ./example/node_modules/react-native-wkwebview-reborn/ios ./",
+    "sync-to-example": "cp ./*.js ./example/node_modules/react-native-wkwebview-reborn/;cp -r ./ios ./example/node_modules/react-native-wkwebview-reborn/"
   },
-  "version": "1.9.0"
+  "version": "2.0.0"
 }
