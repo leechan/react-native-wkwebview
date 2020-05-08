@@ -36,6 +36,8 @@ static NSString *const kPostMessageHost = @"postMessage";
 @property (nonatomic, copy) RCTDirectEventBlock onMessage;
 @property (nonatomic, copy) RCTDirectEventBlock onScroll;
 @property (nonatomic, copy) RCTDirectEventBlock onNavigationResponse;
+@property (nonatomic, copy) RCTDirectEventBlock onCanGoBackChange;
+@property (nonatomic, copy) RCTDirectEventBlock onCanGoForwardChange;
 @property (assign) BOOL sendCookies;
 @property (nonatomic, strong) WKUserScript *atStartScript;
 @property (nonatomic, strong) WKUserScript *atEndScript;
@@ -90,6 +92,8 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 #endif
     [self setupPostMessageScript];
     [_webView addObserver:self forKeyPath:@"estimatedProgress" options:NSKeyValueObservingOptionNew context:nil];
+    [_webView addObserver:self forKeyPath:@"canGoBack" options:NSKeyValueObservingOptionNew context:nil];
+    [_webView addObserver:self forKeyPath:@"canGoForward" options:NSKeyValueObservingOptionNew context:nil];
     [self addSubview:_webView];
   }
   return self;
@@ -411,6 +415,20 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
       return;
     }
     _onProgress(@{@"progress": [change objectForKey:NSKeyValueChangeNewKey]});
+  }
+  
+  if ([keyPath isEqualToString:@"canGoBack"]) {
+    if (!_onCanGoBackChange) {
+      return;
+    }
+    _onCanGoBackChange(@{@"canGoBack": [change objectForKey:NSKeyValueChangeNewKey]});
+  }
+
+  if ([keyPath isEqualToString:@"canGoForward"]) {
+    if (!_onCanGoForwardChange) {
+      return;
+    }
+    _onCanGoForwardChange(@{@"canGoForward": [change objectForKey:NSKeyValueChangeNewKey]});
   }
 }
 
